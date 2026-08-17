@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Speak60 | One Minute Speaking</title>
+
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+
+</head>
+
+
+<body>
+
+    <!-- Background Effects -->
+
+    <div class="background">
+
+        <div class="glow glow-one"></div>
+
+        <div class="glow glow-two"></div>
+
+        <div class="grid"></div>
+
+    </div>
+
+
+    <!-- MAIN APP -->
+
+    <div class="app">
+
+
+        <!-- HEADER -->
+
+        <header class="header">
+
+            <div class="brand">
+
+                <div class="brand-icon">
+                    S
+                </div>
+
+                <div>
+
+                    <h1>
+                        Speak<span>60</span>
+                    </h1>
+
+                    <p>
+                        Speak. Think. Improve.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            <div class="streak">
+
+                <span class="fire">
+                    🔥
+                </span>
+
+                <div>
+
+                    <strong id="streak">
+                        01
+                    </strong>
+
+                    <small>
+                        DAY STREAK
+                    </small>
+
+                </div>
+
+            </div>
+
+        </header>
+
+
+        <!-- HERO -->
+
+        <section class="hero">
+
+            <div class="eyebrow">
+
+                <span class="live-dot"></span>
+
+                ONE MINUTE CHALLENGE
+
+            </div>
+
+
+            <h2>
+
+                Speak without
+                <span>overthinking.</span>
+
+            </h2>
+
+
+            <p class="hero-description">
+
+                Pick a topic, hit start and speak your mind
+                for exactly 60 seconds.
+
+            </p>
+
+        </section>
+
+
+        <!-- SESSION -->
+
+        <section class="session">
+
+
+            <!-- LEFT SIDE -->
+
+            <div class="topic-panel">
+
+
+                <div class="topic-header">
+
+                    <span>
+                        TODAY'S TOPIC
+                    </span>
+
+                    <button
+                        id="randomBtn"
+                        class="shuffle-btn"
+                        onclick="newTopic()"
+                    >
+
+                        ↻
+
+                    </button>
+
+                </div>
+
+
+                <div class="topic-card">
+
+                    <div class="quote-mark">
+                        “
+                    </div>
+
+
+                    <h3 id="topic">
+
+                        What is one skill
+                        everyone should learn?
+
+                    </h3>
+
+
+                    <div class="topic-footer">
+
+                        <span class="difficulty">
+
+                            <span class="difficulty-dot"></span>
+
+                            Medium
+
+                        </span>
+
+
+                        <span class="category">
+
+                            LIFE & CAREER
+
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+                <!-- TIP -->
+
+                <div class="tip">
+
+                    <div class="tip-icon">
+                        💡
+                    </div>
+
+                    <div>
+
+                        <strong>
+                            Quick tip
+                        </strong>
+
+                        <p>
+                            Don't stop to find perfect words.
+                            Keep your ideas flowing.
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- RIGHT SIDE TIMER -->
+
+            <div class="timer-panel">
+
+
+                <div class="timer-container">
+
+
+                    <!-- Outer Glow -->
+
+                    <div class="timer-glow"></div>
+
+
+                    <!-- SVG -->
+
+                    <svg
+                        class="timer-svg"
+                        viewBox="0 0 360 360"
+                    >
+
+                        <circle
+                            class="circle-bg"
+                            cx="180"
+                            cy="180"
+                            r="150"
+                        ></circle>
+
+
+                        <circle
+                            id="progress"
+                            class="circle-progress"
+                            cx="180"
+                            cy="180"
+                            r="150"
+                        ></circle>
+
+                    </svg>
+
+
+                    <!-- Orbit -->
+
+                    <div
+                        id="orbitDot"
+                        class="orbit-dot"
+                    ></div>
+
+
+                    <!-- Timer Content -->
+
+                    <div class="timer-content">
+
+                        <div
+                            id="time"
+                            class="time"
+                        >
+                            01:00
+                        </div>
+
+
+                        <div
+                            id="status"
+                            class="timer-status"
+                        >
+
+                            <span class="status-dot"></span>
+
+                            Ready
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                <!-- Controls -->
+
+                <div class="controls">
+
+
+                    <button
+                        id="startBtn"
+                        class="start-btn"
+                        onclick="startTimer()"
+                    >
+
+                        <span class="mic-icon">
+                            🎙
+                        </span>
+
+                        <span id="startText">
+                            Start Speaking
+                        </span>
+
+                    </button>
+
+
+                    <button
+                        class="reset-btn"
+                        onclick="resetTimer()"
+                    >
+
+                        ↺
+
+                    </button>
+
+                </div>
+
+
+                <p class="keyboard-hint">
+
+                    Press
+                    <kbd>SPACE</kbd>
+                    to start / pause
+
+                </p>
+
+            </div>
+
+        </section>
+
+
+        <!-- FOOTER STATS -->
+
+        <section class="stats">
+
+
+            <div class="stat">
+
+                <span class="stat-icon">
+                    ⏱
+                </span>
+
+                <div>
+
+                    <strong>
+                        60 sec
+                    </strong>
+
+                    <small>
+                        SPEAKING TIME
+                    </small>
+
+                </div>
+
+            </div>
+
+
+            <div class="stat-divider"></div>
+
+
+            <div class="stat">
+
+                <span class="stat-icon">
+                    🎯
+                </span>
+
+                <div>
+
+                    <strong>
+                        Random
+                    </strong>
+
+                    <small>
+                        TOPIC MODE
+                    </small>
+
+                </div>
+
+            </div>
+
+
+            <div class="stat-divider"></div>
+
+
+            <div class="stat">
+
+                <span class="stat-icon">
+                    ⚡
+                </span>
+
+                <div>
+
+                    <strong>
+                        Focus
+                    </strong>
+
+                    <small>
+                        NO DISTRACTIONS
+                    </small>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- COMPLETION MODAL -->
+
+        <div
+            id="completion"
+            class="completion"
+        >
+
+            <div class="completion-card">
+
+                <div class="success-icon">
+                    ✓
+                </div>
+
+                <p class="completion-label">
+                    SESSION COMPLETE
+                </p>
+
+                <h3>
+                    You did it.
+                </h3>
+
+                <p>
+                    One minute of speaking completed.
+                </p>
+
+                <button
+                    onclick="newSession()"
+                >
+                    Try Another Topic
+                </button>
+
+            </div>
+
+        </div>
+
+
+    </div>
+
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>
