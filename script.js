@@ -1,42 +1,39 @@
-/* =========================================
+"use strict";
+
+/* =========================================================
    SPEAK60
    60 SECOND ENGLISH SPEAKING PRACTICE
-========================================= */
+========================================================= */
 
 
-/* =========================================
+/* =========================================================
    SETTINGS
-========================================= */
+========================================================= */
 
 const TOTAL_SECONDS = 60;
+const CIRCUMFERENCE = 2 * Math.PI * 150;
 
 let remainingSeconds = TOTAL_SECONDS;
-
 let timer = null;
-
 let running = false;
 
 let finalTranscript = "";
-
 let recognition = null;
-
 let speechSupported = false;
-
 let recognitionStarting = false;
 
 
-/* =========================================
+/* =========================================================
    ENGLISH COACH PROMPT
-========================================= */
+========================================================= */
 
 const AI_COACH_PROMPT = `
 Act as my English speaking partner.
 
 Give me one random speaking topic at a time.
 
-The topics should be suitable for everyday
-conversations, opinions, work, travel,
-technology, books, or current events.
+The topics should be suitable for everyday conversations,
+opinions, work, travel, technology, books, or current events.
 
 After I answer:
 
@@ -75,9 +72,9 @@ User's answer:
 `;
 
 
-/* =========================================
+/* =========================================================
    TOPICS
-========================================= */
+========================================================= */
 
 const topics = [
 
@@ -204,9 +201,9 @@ const topics = [
 ];
 
 
-/* =========================================
+/* =========================================================
    DOM ELEMENTS
-========================================= */
+========================================================= */
 
 const timeElement =
     document.getElementById("time");
@@ -229,78 +226,51 @@ const topicElement =
 const completion =
     document.getElementById("completion");
 
-const timerContainer =
-    document.querySelector(".timer-container");
-
 const transcriptElement =
     document.getElementById("transcript");
 
 const wordCountElement =
     document.getElementById("wordCount");
 
-const feedbackButton =
-    document.getElementById("feedbackBtn");
-
 const streakElement =
     document.getElementById("streak");
 
-
-/* =========================================
-   SAFETY CHECK
-========================================= */
-
-if (!timeElement) {
-    console.error("Speak60: #time element not found.");
-}
-
-if (!progress) {
-    console.error("Speak60: #progress element not found.");
-}
-
-if (!transcriptElement) {
-    console.error("Speak60: #transcript element not found.");
-}
+const timerContainer =
+    document.querySelector(".timer-container");
 
 
-/* =========================================
-   TIMER CIRCLE
-========================================= */
-
-const radius = 150;
-
-const circumference =
-    2 * Math.PI * radius;
-
+/* =========================================================
+   TIMER CIRCLE SETUP
+========================================================= */
 
 if (progress) {
 
     progress.style.strokeDasharray =
-        circumference;
+        CIRCUMFERENCE;
 
     progress.style.strokeDashoffset =
-        circumference;
+        CIRCUMFERENCE;
 
 }
 
 
-/* =========================================
+/* =========================================================
    SPEECH RECOGNITION SUPPORT
-========================================= */
+========================================================= */
 
 const SpeechRecognition =
     window.SpeechRecognition ||
     window.webkitSpeechRecognition;
 
+speechSupported =
+    Boolean(SpeechRecognition);
 
-/* =========================================
+
+/* =========================================================
    MICROPHONE PERMISSION
-========================================= */
+========================================================= */
 
 async function requestMicrophonePermission() {
-
-    /*
-       Check browser support for getUserMedia.
-    */
 
     if (
         !navigator.mediaDevices ||
@@ -308,7 +278,7 @@ async function requestMicrophonePermission() {
     ) {
 
         alert(
-            "Your browser does not support microphone access. Please use the latest Google Chrome."
+            "Microphone access is not supported here. Please use the latest Google Chrome."
         );
 
         return false;
@@ -325,28 +295,20 @@ async function requestMicrophonePermission() {
 
         const stream =
             await navigator.mediaDevices.getUserMedia({
-
                 audio: true
-
             });
 
-
-        console.log(
-            "Speak60: Microphone permission granted."
-        );
-
-
-        /*
-           We only needed permission.
-           SpeechRecognition handles the actual
-           speech recognition.
-        */
 
         stream
             .getTracks()
             .forEach(
                 track => track.stop()
             );
+
+
+        console.log(
+            "Speak60: Microphone permission granted."
+        );
 
 
         return true;
@@ -356,7 +318,7 @@ async function requestMicrophonePermission() {
     catch (error) {
 
         console.error(
-            "Speak60: Microphone permission error:",
+            "Speak60 microphone error:",
             error
         );
 
@@ -366,7 +328,7 @@ async function requestMicrophonePermission() {
         ) {
 
             alert(
-                "Microphone permission was blocked. Click the 🔒 icon near the website address, set Microphone to Allow, then refresh the page."
+                "Microphone permission is blocked. Click the lock icon near the website address, set Microphone to Allow, then refresh."
             );
 
         }
@@ -384,7 +346,7 @@ async function requestMicrophonePermission() {
         else {
 
             alert(
-                "Unable to access your microphone. Please check your browser microphone settings."
+                "Unable to access your microphone. Please check Chrome microphone settings."
             );
 
         }
@@ -397,9 +359,9 @@ async function requestMicrophonePermission() {
 }
 
 
-/* =========================================
+/* =========================================================
    CREATE SPEECH RECOGNITION
-========================================= */
+========================================================= */
 
 function createSpeechRecognition() {
 
@@ -423,102 +385,106 @@ function createSpeechRecognition() {
         new SpeechRecognition();
 
 
-    /*
-       Keep listening while the session
-       is active.
-    */
-
-    recognition.continuous = true;
+    recognition.continuous =
+        true;
 
 
-    /*
-       Show live words before they become
-       final transcript.
-    */
-
-    recognition.interimResults = true;
+    recognition.interimResults =
+        true;
 
 
-    /*
-       English speaking practice.
-    */
-
-    recognition.lang = "en-US";
+    recognition.lang =
+        "en-US";
 
 
-    /*
-       Maximum alternatives.
-    */
-
-    recognition.maxAlternatives = 1;
+    recognition.maxAlternatives =
+        1;
 
 
-    /* =====================================
+    /* =====================================================
+       SPEECH START
+    ===================================================== */
+
+    recognition.onstart =
+        function () {
+
+            recognitionStarting =
+                false;
+
+            console.log(
+                "Speak60: Speech recognition started."
+            );
+
+        };
+
+
+    /* =====================================================
        SPEECH RESULT
-    ===================================== */
+    ===================================================== */
 
-    recognition.onresult = function(event) {
+    recognition.onresult =
+        function (event) {
 
-        let interimTranscript = "";
-
-
-        for (
-            let i = event.resultIndex;
-            i < event.results.length;
-            i++
-        ) {
-
-            const text =
-                event.results[i][0].transcript;
+            let interimTranscript =
+                "";
 
 
-            if (
-                event.results[i].isFinal
+            for (
+                let i = event.resultIndex;
+                i < event.results.length;
+                i++
             ) {
 
-                finalTranscript +=
-                    text + " ";
+                const text =
+                    event.results[i][0].transcript;
+
+
+                if (
+                    event.results[i].isFinal
+                ) {
+
+                    finalTranscript +=
+                        text + " ";
+
+                }
+
+                else {
+
+                    interimTranscript +=
+                        text;
+
+                }
 
             }
 
-            else {
 
-                interimTranscript += text;
-
-            }
-
-        }
+            const completeTranscript =
+                finalTranscript +
+                interimTranscript;
 
 
-        const completeTranscript =
-            finalTranscript +
-            interimTranscript;
+            updateTranscript(
+                completeTranscript
+            );
+
+        };
 
 
-        updateTranscript(
-            completeTranscript
-        );
-
-
-        console.log(
-            "Speak60 transcript:",
-            completeTranscript
-        );
-
-    };
-
-
-    /* =====================================
+    /* =====================================================
        SPEECH ERROR
-    ===================================== */
+    ===================================================== */
 
     recognition.onerror =
-        function(event) {
+        function (event) {
 
             console.error(
-                "Speak60 Speech Recognition Error:",
+                "Speak60 Speech Error:",
                 event.error
             );
+
+
+            recognitionStarting =
+                false;
 
 
             if (
@@ -562,27 +528,28 @@ function createSpeechRecognition() {
         };
 
 
-    /* =====================================
+    /* =====================================================
        SPEECH END
-    ===================================== */
+    ===================================================== */
 
     recognition.onend =
-        function() {
+        function () {
+
+            recognitionStarting =
+                false;
+
 
             console.log(
                 "Speak60: Speech recognition ended."
             );
 
 
-            recognitionStarting = false;
-
-
             /*
                Chrome may automatically stop
-               recognition.
+               speech recognition.
 
-               If our timer is still running,
-               restart recognition.
+               Restart only while timer
+               is still running.
             */
 
             if (
@@ -591,12 +558,8 @@ function createSpeechRecognition() {
             ) {
 
                 setTimeout(
-                    function() {
-
-                        startRecognition();
-
-                    },
-                    250
+                    startRecognition,
+                    300
                 );
 
             }
@@ -606,15 +569,16 @@ function createSpeechRecognition() {
 }
 
 
-/* =========================================
+/* =========================================================
    START SPEECH RECOGNITION
-========================================= */
+========================================================= */
 
 function startRecognition() {
 
     if (
         !recognition ||
-        !running
+        !running ||
+        recognitionStarting
     ) {
 
         return;
@@ -622,14 +586,8 @@ function startRecognition() {
     }
 
 
-    if (recognitionStarting) {
-
-        return;
-
-    }
-
-
-    recognitionStarting = true;
+    recognitionStarting =
+        true;
 
 
     try {
@@ -638,42 +596,41 @@ function startRecognition() {
 
 
         console.log(
-            "Speak60: Speech recognition started."
+            "Speak60: Recognition start called."
         );
 
     }
 
     catch (error) {
 
-        console.log(
-            "Speak60: Recognition start:",
+        recognitionStarting =
+            false;
+
+
+        console.warn(
+            "Speak60 recognition start:",
             error.message
         );
 
     }
 
-
-    setTimeout(
-        function() {
-
-            recognitionStarting = false;
-
-        },
-        500
-    );
-
 }
 
 
-/* =========================================
+/* =========================================================
    START / PAUSE TIMER
-========================================= */
+========================================================= */
 
 async function startTimer() {
 
+    console.log(
+        "Speak60: Start Speaking clicked."
+    );
+
+
     /*
-       If already running,
-       pause the session.
+       If timer is already running,
+       pause it.
     */
 
     if (running) {
@@ -686,13 +643,13 @@ async function startTimer() {
 
 
     /*
-       Browser speech support.
+       Check Speech Recognition.
     */
 
     if (!speechSupported) {
 
         alert(
-            "Speech recognition is not supported in this browser. Please use the latest Google Chrome."
+            "Speech recognition is not supported in this browser. Please use Google Chrome."
         );
 
         return;
@@ -701,7 +658,7 @@ async function startTimer() {
 
 
     /*
-       Request microphone permission.
+       Ask microphone permission.
     */
 
     const microphoneAllowed =
@@ -716,8 +673,7 @@ async function startTimer() {
 
 
     /*
-       If previous session was completed,
-       reset it.
+       Reset completed session.
     */
 
     if (
@@ -730,10 +686,11 @@ async function startTimer() {
 
 
     /*
-       Start state.
+       Start session.
     */
 
-    running = true;
+    running =
+        true;
 
 
     startText.textContent =
@@ -754,31 +711,26 @@ async function startTimer() {
 
 
     /*
-       Start speech recognition.
+       Start microphone recognition.
     */
 
     startRecognition();
 
 
     /*
-       Start countdown.
+       Start 60 second countdown.
     */
 
     timer =
         setInterval(
-            function() {
+            function () {
 
                 remainingSeconds--;
-
 
                 updateTime();
 
                 updateCircle();
 
-
-                /*
-                   Finish at zero.
-                */
 
                 if (
                     remainingSeconds <= 0
@@ -795,17 +747,22 @@ async function startTimer() {
 }
 
 
-/* =========================================
+/* =========================================================
    PAUSE TIMER
-========================================= */
+========================================================= */
 
 function pauseTimer() {
 
     clearInterval(timer);
 
-    timer = null;
+    timer =
+        null;
 
-    running = false;
+    running =
+        false;
+
+    recognitionStarting =
+        false;
 
 
     startText.textContent =
@@ -821,63 +778,30 @@ function pauseTimer() {
     );
 
 
-    /*
-       Stop recognition.
-    */
-
-    if (recognition) {
-
-        try {
-
-            recognition.stop();
-
-        }
-
-        catch (error) {
-
-            console.log(error);
-
-        }
-
-    }
-
-
-    recognitionStarting = false;
+    stopRecognition();
 
 }
 
 
-/* =========================================
+/* =========================================================
    STOP SPEAKING
-========================================= */
+========================================================= */
 
 function stopSpeaking() {
 
     clearInterval(timer);
 
-    timer = null;
+    timer =
+        null;
 
-    running = false;
+    running =
+        false;
 
-
-    if (recognition) {
-
-        try {
-
-            recognition.stop();
-
-        }
-
-        catch (error) {
-
-            console.log(error);
-
-        }
-
-    }
+    recognitionStarting =
+        false;
 
 
-    recognitionStarting = false;
+    stopRecognition();
 
 
     timerContainer.classList.remove(
@@ -895,71 +819,75 @@ function stopSpeaking() {
 }
 
 
-/* =========================================
-   RESET
-========================================= */
+/* =========================================================
+   STOP RECOGNITION
+========================================================= */
+
+function stopRecognition() {
+
+    if (!recognition) {
+
+        return;
+
+    }
+
+
+    try {
+
+        recognition.stop();
+
+    }
+
+    catch (error) {
+
+        console.log(
+            "Recognition already stopped."
+        );
+
+    }
+
+}
+
+
+/* =========================================================
+   RESET TIMER
+========================================================= */
 
 function resetTimer() {
 
     clearInterval(timer);
 
-    timer = null;
+    timer =
+        null;
 
-    running = false;
+    running =
+        false;
 
-    recognitionStarting = false;
+    recognitionStarting =
+        false;
 
 
     remainingSeconds =
         TOTAL_SECONDS;
 
 
-    finalTranscript = "";
+    finalTranscript =
+        "";
 
 
-    /*
-       Stop recognition.
-    */
+    stopRecognition();
 
-    if (recognition) {
-
-        try {
-
-            recognition.stop();
-
-        }
-
-        catch (error) {
-
-            console.log(error);
-
-        }
-
-    }
-
-
-    /*
-       Reset timer.
-    */
 
     updateTime();
 
 
-    /*
-       Reset circle.
-    */
-
     if (progress) {
 
         progress.style.strokeDashoffset =
-            circumference;
+            CIRCUMFERENCE;
 
     }
 
-
-    /*
-       Reset orbit.
-    */
 
     moveDot(0);
 
@@ -968,17 +896,9 @@ function resetTimer() {
         "0";
 
 
-    /*
-       Reset button.
-    */
-
     startText.textContent =
         "Start Speaking";
 
-
-    /*
-       Reset status.
-    */
 
     statusElement.innerHTML =
         '<span class="status-dot"></span> Ready';
@@ -989,18 +909,14 @@ function resetTimer() {
     );
 
 
-    /*
-       Reset transcript.
-    */
-
     updateTranscript("");
 
 }
 
 
-/* =========================================
+/* =========================================================
    UPDATE TIME
-========================================= */
+========================================================= */
 
 function updateTime() {
 
@@ -1016,18 +932,24 @@ function updateTime() {
 
     timeElement.textContent =
 
-        String(minutes).padStart(2, "0")
+        String(minutes).padStart(
+            2,
+            "0"
+        )
         +
         ":"
         +
-        String(seconds).padStart(2, "0");
+        String(seconds).padStart(
+            2,
+            "0"
+        );
 
 }
 
 
-/* =========================================
+/* =========================================================
    UPDATE CIRCLE
-========================================= */
+========================================================= */
 
 function updateCircle() {
 
@@ -1037,14 +959,15 @@ function updateCircle() {
 
 
     const percentage =
-        elapsed / TOTAL_SECONDS;
+        elapsed /
+        TOTAL_SECONDS;
 
 
     const offset =
-        circumference -
+        CIRCUMFERENCE -
         (
             percentage *
-            circumference
+            CIRCUMFERENCE
         );
 
 
@@ -1063,58 +986,48 @@ function updateCircle() {
 }
 
 
-/* =========================================
+/* =========================================================
    MOVE ORBIT DOT
-========================================= */
+========================================================= */
 
 function moveDot(percentage) {
 
     const angle =
+
         percentage *
-        2 *
-        Math.PI
+        Math.PI *
+        2
         -
         Math.PI / 2;
 
 
-    const centerX = 180;
-
-    const centerY = 180;
-
-
     const x =
-        centerX +
-        radius *
+
+        180 +
+        150 *
         Math.cos(angle);
 
 
     const y =
-        centerY +
-        radius *
+
+        180 +
+        150 *
         Math.sin(angle);
 
 
-    const left =
-        (x / 360) * 100;
-
-
-    const top =
-        (y / 360) * 100;
-
-
     orbitDot.style.left =
-        left + "%";
+        `${(x / 360) * 100}%`;
 
 
     orbitDot.style.top =
-        top + "%";
+        `${(y / 360) * 100}%`;
 
 }
 
 
-/* =========================================
+/* =========================================================
    UPDATE TRANSCRIPT
-========================================= */
+========================================================= */
 
 function updateTranscript(text) {
 
@@ -1149,77 +1062,51 @@ function updateTranscript(text) {
         text;
 
 
-    const words =
+    const count =
         text
             .trim()
             .split(/\s+/)
-            .filter(
-                word =>
-                    word.length > 0
-            );
-
-
-    const count =
-        words.length;
+            .filter(Boolean)
+            .length;
 
 
     wordCountElement.textContent =
 
-        count
-        +
-        (
+        `${count} ${
             count === 1
-                ? " word"
-                : " words"
-        );
+                ? "word"
+                : "words"
+        }`;
 
 }
 
 
-/* =========================================
+/* =========================================================
    FINISH 60 SECOND SESSION
-========================================= */
+========================================================= */
 
 function finishTimer() {
 
     clearInterval(timer);
 
-    timer = null;
+    timer =
+        null;
 
-    running = false;
+    running =
+        false;
 
-    recognitionStarting = false;
-
-    remainingSeconds = 0;
-
-
-    /*
-       Stop speech recognition.
-    */
-
-    if (recognition) {
-
-        try {
-
-            recognition.stop();
-
-        }
-
-        catch (error) {
-
-            console.log(error);
-
-        }
-
-    }
+    recognitionStarting =
+        false;
 
 
-    /*
-       Timer UI.
-    */
+    remainingSeconds =
+        0;
 
-    timeElement.textContent =
-        "00:00";
+
+    stopRecognition();
+
+
+    updateTime();
 
 
     if (progress) {
@@ -1250,30 +1137,22 @@ function finishTimer() {
     );
 
 
-    /*
-       Update streak.
-    */
-
     updateStreak();
 
-
-    /*
-       Sound.
-    */
 
     playFinishSound();
 
 
-    /*
-       Show completion.
-    */
-
     setTimeout(
-        function() {
+        function () {
 
-            completion.classList.add(
-                "show"
-            );
+            if (completion) {
+
+                completion.classList.add(
+                    "show"
+                );
+
+            }
 
         },
         500
@@ -1282,46 +1161,43 @@ function finishTimer() {
 }
 
 
-/* =========================================
+/* =========================================================
    RANDOM TOPIC
-========================================= */
+========================================================= */
 
 function newTopic() {
 
-    let randomIndex;
+    if (!topicElement) {
+
+        return;
+
+    }
+
+
+    let selected;
 
 
     do {
 
-        randomIndex =
-            Math.floor(
-                Math.random() *
-                topics.length
-            );
+        selected =
+            topics[
+                Math.floor(
+                    Math.random() *
+                    topics.length
+                )
+            ];
 
     }
 
     while (
-        topicElement.textContent ===
-        topics[randomIndex].text
+        selected.text ===
+        topicElement.textContent
     );
 
-
-    const selected =
-        topics[randomIndex];
-
-
-    /*
-       Topic.
-    */
 
     topicElement.textContent =
         selected.text;
 
-
-    /*
-       Difficulty.
-    */
 
     const difficulty =
         document.querySelector(
@@ -1331,20 +1207,13 @@ function newTopic() {
 
     if (difficulty) {
 
-        difficulty.innerHTML = `
+        difficulty.innerHTML =
 
-            <span class="difficulty-dot"></span>
-
-            ${selected.difficulty}
-
-        `;
+            `<span class="difficulty-dot"></span>
+             ${selected.difficulty}`;
 
     }
 
-
-    /*
-       Category.
-    */
 
     const category =
         document.querySelector(
@@ -1360,24 +1229,24 @@ function newTopic() {
     }
 
 
-    /*
-       Reset timer.
-    */
-
     resetTimer();
 
 }
 
 
-/* =========================================
+/* =========================================================
    NEW SESSION
-========================================= */
+========================================================= */
 
 function newSession() {
 
-    completion.classList.remove(
-        "show"
-    );
+    if (completion) {
+
+        completion.classList.remove(
+            "show"
+        );
+
+    }
 
 
     newTopic();
@@ -1385,24 +1254,19 @@ function newSession() {
 }
 
 
-/* =========================================
+/* =========================================================
    STREAK
-========================================= */
+========================================================= */
 
 function updateStreak() {
 
-    if (!streakElement) {
-
-        return;
-
-    }
-
-
     let streak =
+
         parseInt(
             localStorage.getItem(
                 "speak60Streak"
-            )
+            ),
+            10
         )
         ||
         0;
@@ -1417,60 +1281,61 @@ function updateStreak() {
     );
 
 
-    streakElement.textContent =
-        String(streak).padStart(
-            2,
-            "0"
-        );
+    if (streakElement) {
+
+        streakElement.textContent =
+
+            String(streak).padStart(
+                2,
+                "0"
+            );
+
+    }
 
 }
 
 
-/* =========================================
+/* =========================================================
    LOAD STREAK
-========================================= */
+========================================================= */
 
 function loadStreak() {
 
-    if (!streakElement) {
-
-        return;
-
-    }
-
-
     const streak =
+
         parseInt(
             localStorage.getItem(
                 "speak60Streak"
-            )
+            ),
+            10
         )
         ||
         0;
 
 
-    streakElement.textContent =
-        String(streak).padStart(
-            2,
-            "0"
-        );
+    if (streakElement) {
+
+        streakElement.textContent =
+
+            String(streak).padStart(
+                2,
+                "0"
+            );
+
+    }
 
 }
 
 
-/* =========================================
+/* =========================================================
    AI FEEDBACK
-========================================= */
+========================================================= */
 
 function requestAIFeedback() {
 
     const answer =
         finalTranscript.trim();
 
-
-    /*
-       No answer.
-    */
 
     if (!answer) {
 
@@ -1483,11 +1348,8 @@ function requestAIFeedback() {
     }
 
 
-    /*
-       Prepare AI prompt.
-    */
-
     const prompt =
+
         AI_COACH_PROMPT
         +
         "\n\n"
@@ -1502,8 +1364,15 @@ function requestAIFeedback() {
 
 
     /*
-       Backend will be connected later.
+       IMPORTANT:
+
+       Do NOT put your OpenAI API key
+       directly inside this JavaScript file.
+
+       We will connect the AI through
+       a secure backend later.
     */
+
 
     alert(
         "Your response is ready for AI analysis."
@@ -1512,25 +1381,27 @@ function requestAIFeedback() {
 }
 
 
-/* =========================================
+/* =========================================================
    KEYBOARD SHORTCUTS
-========================================= */
+========================================================= */
 
 document.addEventListener(
     "keydown",
-    function(event) {
+    function (event) {
+
 
         /*
-           SPACE
-           Start / Pause
+           SPACE = Start / Pause
         */
 
         if (
+
             event.code === "Space"
             &&
             event.target.tagName !== "INPUT"
             &&
             event.target.tagName !== "TEXTAREA"
+
         ) {
 
             event.preventDefault();
@@ -1541,12 +1412,15 @@ document.addEventListener(
 
 
         /*
-           R
-           Reset
+           R = Reset
         */
 
         if (
-            event.key.toLowerCase() === "r"
+
+            event.key.toLowerCase()
+            ===
+            "r"
+
         ) {
 
             resetTimer();
@@ -1557,13 +1431,14 @@ document.addEventListener(
 );
 
 
-/* =========================================
+/* =========================================================
    FINISH SOUND
-========================================= */
+========================================================= */
 
 function playFinishSound() {
 
     const AudioContext =
+
         window.AudioContext ||
         window.webkitAudioContext;
 
@@ -1617,9 +1492,9 @@ function playFinishSound() {
 }
 
 
-/* =========================================
+/* =========================================================
    INITIALIZE
-========================================= */
+========================================================= */
 
 createSpeechRecognition();
 
@@ -1630,3 +1505,8 @@ moveDot(0);
 updateTime();
 
 updateTranscript("");
+
+
+console.log(
+    "🔥 SPEAK60 SCRIPT LOADED SUCCESSFULLY"
+);
