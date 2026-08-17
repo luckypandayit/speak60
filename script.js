@@ -22,6 +22,8 @@ let recognition = null;
 
 let speechSupported = false;
 
+let recognitionStarting = false;
+
 
 /* =========================================
    ENGLISH COACH PROMPT
@@ -167,6 +169,36 @@ const topics = [
         text: "What is the best advice you have ever received?",
         difficulty: "Medium",
         category: "LIFE"
+    },
+
+    {
+        text: "What book has influenced the way you think?",
+        difficulty: "Medium",
+        category: "BOOKS"
+    },
+
+    {
+        text: "What is something you want to achieve this year?",
+        difficulty: "Easy",
+        category: "GOALS"
+    },
+
+    {
+        text: "Would you rather work from home or from an office?",
+        difficulty: "Medium",
+        category: "WORK"
+    },
+
+    {
+        text: "What makes a good friend?",
+        difficulty: "Easy",
+        category: "EVERYDAY LIFE"
+    },
+
+    {
+        text: "What is one invention you cannot imagine living without?",
+        difficulty: "Medium",
+        category: "TECHNOLOGY"
     }
 
 ];
@@ -209,6 +241,26 @@ const wordCountElement =
 const feedbackButton =
     document.getElementById("feedbackBtn");
 
+const streakElement =
+    document.getElementById("streak");
+
+
+/* =========================================
+   SAFETY CHECK
+========================================= */
+
+if (!timeElement) {
+    console.error("Speak60: #time element not found.");
+}
+
+if (!progress) {
+    console.error("Speak60: #progress element not found.");
+}
+
+if (!transcriptElement) {
+    console.error("Speak60: #transcript element not found.");
+}
+
 
 /* =========================================
    TIMER CIRCLE
@@ -219,15 +271,20 @@ const radius = 150;
 const circumference =
     2 * Math.PI * radius;
 
-progress.style.strokeDasharray =
-    circumference;
 
-progress.style.strokeDashoffset =
-    circumference;
+if (progress) {
+
+    progress.style.strokeDasharray =
+        circumference;
+
+    progress.style.strokeDashoffset =
+        circumference;
+
+}
 
 
 /* =========================================
-   SPEECH RECOGNITION
+   SPEECH RECOGNITION SUPPORT
 ========================================= */
 
 const SpeechRecognition =
@@ -235,19 +292,170 @@ const SpeechRecognition =
     window.webkitSpeechRecognition;
 
 
-if (SpeechRecognition) {
+/* =========================================
+   MICROPHONE PERMISSION
+========================================= */
+
+async function requestMicrophonePermission() {
+
+    /*
+       Check browser support for getUserMedia.
+    */
+
+    if (
+        !navigator.mediaDevices ||
+        !navigator.mediaDevices.getUserMedia
+    ) {
+
+        alert(
+            "Your browser does not support microphone access. Please use the latest Google Chrome."
+        );
+
+        return false;
+
+    }
+
+
+    try {
+
+        console.log(
+            "Speak60: Requesting microphone permission..."
+        );
+
+
+        const stream =
+            await navigator.mediaDevices.getUserMedia({
+
+                audio: true
+
+            });
+
+
+        console.log(
+            "Speak60: Microphone permission granted."
+        );
+
+
+        /*
+           We only needed permission.
+           SpeechRecognition handles the actual
+           speech recognition.
+        */
+
+        stream
+            .getTracks()
+            .forEach(
+                track => track.stop()
+            );
+
+
+        return true;
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Speak60: Microphone permission error:",
+            error
+        );
+
+
+        if (
+            error.name === "NotAllowedError"
+        ) {
+
+            alert(
+                "Microphone permission was blocked. Click the 🔒 icon near the website address, set Microphone to Allow, then refresh the page."
+            );
+
+        }
+
+        else if (
+            error.name === "NotFoundError"
+        ) {
+
+            alert(
+                "No microphone was found. Connect a microphone and try again."
+            );
+
+        }
+
+        else {
+
+            alert(
+                "Unable to access your microphone. Please check your browser microphone settings."
+            );
+
+        }
+
+
+        return false;
+
+    }
+
+}
+
+
+/* =========================================
+   CREATE SPEECH RECOGNITION
+========================================= */
+
+function createSpeechRecognition() {
+
+    if (!SpeechRecognition) {
+
+        speechSupported = false;
+
+        console.error(
+            "Speak60: Speech Recognition is not supported."
+        );
+
+        return;
+
+    }
+
 
     speechSupported = true;
+
 
     recognition =
         new SpeechRecognition();
 
+
+    /*
+       Keep listening while the session
+       is active.
+    */
+
     recognition.continuous = true;
+
+
+    /*
+       Show live words before they become
+       final transcript.
+    */
 
     recognition.interimResults = true;
 
+
+    /*
+       English speaking practice.
+    */
+
     recognition.lang = "en-US";
 
+
+    /*
+       Maximum alternatives.
+    */
+
+    recognition.maxAlternatives = 1;
+
+
+    /* =====================================
+       SPEECH RESULT
+    ===================================== */
 
     recognition.onresult = function(event) {
 
@@ -271,7 +479,9 @@ if (SpeechRecognition) {
                 finalTranscript +=
                     text + " ";
 
-            } else {
+            }
+
+            else {
 
                 interimTranscript += text;
 
@@ -289,69 +499,177 @@ if (SpeechRecognition) {
             completeTranscript
         );
 
-    };
-
-
-    recognition.onerror = function(event) {
 
         console.log(
-            "Speech recognition:",
-            event.error
+            "Speak60 transcript:",
+            completeTranscript
         );
-
-
-        if (
-            event.error === "not-allowed"
-        ) {
-
-            alert(
-                "Microphone permission is required for Speak60."
-            );
-
-            stopSpeaking();
-
-        }
 
     };
 
 
-    recognition.onend = function() {
+    /* =====================================
+       SPEECH ERROR
+    ===================================== */
 
-        /*
-         Chrome can automatically stop
-         speech recognition.
+    recognition.onerror =
+        function(event) {
 
-         Restart while the 60-second
-         session is active.
-        */
+            console.error(
+                "Speak60 Speech Recognition Error:",
+                event.error
+            );
 
-        if (running) {
 
-            try {
+            if (
+                event.error === "not-allowed"
+            ) {
 
-                recognition.start();
+                alert(
+                    "Microphone permission was denied. Please allow microphone access for this website."
+                );
 
-            } catch (error) {
 
-                console.log(
-                    "Recognition restart:",
-                    error
+                stopSpeaking();
+
+            }
+
+
+            else if (
+                event.error === "audio-capture"
+            ) {
+
+                alert(
+                    "No microphone was detected. Please check your microphone."
+                );
+
+
+                stopSpeaking();
+
+            }
+
+
+            else if (
+                event.error === "network"
+            ) {
+
+                console.warn(
+                    "Speech recognition network error."
                 );
 
             }
 
-        }
+        };
 
-    };
+
+    /* =====================================
+       SPEECH END
+    ===================================== */
+
+    recognition.onend =
+        function() {
+
+            console.log(
+                "Speak60: Speech recognition ended."
+            );
+
+
+            recognitionStarting = false;
+
+
+            /*
+               Chrome may automatically stop
+               recognition.
+
+               If our timer is still running,
+               restart recognition.
+            */
+
+            if (
+                running &&
+                remainingSeconds > 0
+            ) {
+
+                setTimeout(
+                    function() {
+
+                        startRecognition();
+
+                    },
+                    250
+                );
+
+            }
+
+        };
 
 }
 
 
 /* =========================================
-   START / PAUSE
+   START SPEECH RECOGNITION
 ========================================= */
 
-function startTimer() {
+function startRecognition() {
+
+    if (
+        !recognition ||
+        !running
+    ) {
+
+        return;
+
+    }
+
+
+    if (recognitionStarting) {
+
+        return;
+
+    }
+
+
+    recognitionStarting = true;
+
+
+    try {
+
+        recognition.start();
+
+
+        console.log(
+            "Speak60: Speech recognition started."
+        );
+
+    }
+
+    catch (error) {
+
+        console.log(
+            "Speak60: Recognition start:",
+            error.message
+        );
+
+    }
+
+
+    setTimeout(
+        function() {
+
+            recognitionStarting = false;
+
+        },
+        500
+    );
+
+}
+
+
+/* =========================================
+   START / PAUSE TIMER
+========================================= */
+
+async function startTimer() {
 
     /*
        If already running,
@@ -368,10 +686,43 @@ function startTimer() {
 
 
     /*
-       Restart after completion.
+       Browser speech support.
     */
 
-    if (remainingSeconds <= 0) {
+    if (!speechSupported) {
+
+        alert(
+            "Speech recognition is not supported in this browser. Please use the latest Google Chrome."
+        );
+
+        return;
+
+    }
+
+
+    /*
+       Request microphone permission.
+    */
+
+    const microphoneAllowed =
+        await requestMicrophonePermission();
+
+
+    if (!microphoneAllowed) {
+
+        return;
+
+    }
+
+
+    /*
+       If previous session was completed,
+       reset it.
+    */
+
+    if (
+        remainingSeconds <= 0
+    ) {
 
         resetTimer();
 
@@ -379,19 +730,8 @@ function startTimer() {
 
 
     /*
-       Browser support check.
+       Start state.
     */
-
-    if (!speechSupported) {
-
-        alert(
-            "Speech recognition is not supported in this browser. Please use Google Chrome."
-        );
-
-        return;
-
-    }
-
 
     running = true;
 
@@ -409,51 +749,48 @@ function startTimer() {
     );
 
 
-    orbitDot.style.opacity = "1";
+    orbitDot.style.opacity =
+        "1";
 
 
     /*
-       Start microphone.
+       Start speech recognition.
     */
 
-    try {
-
-        recognition.start();
-
-    } catch (error) {
-
-        console.log(
-            "Recognition already running."
-        );
-
-    }
+    startRecognition();
 
 
     /*
        Start countdown.
     */
 
-    timer = setInterval(
-        function() {
+    timer =
+        setInterval(
+            function() {
 
-            remainingSeconds--;
-
-            updateTime();
-
-            updateCircle();
+                remainingSeconds--;
 
 
-            if (
-                remainingSeconds <= 0
-            ) {
+                updateTime();
 
-                finishTimer();
+                updateCircle();
 
-            }
 
-        },
-        1000
-    );
+                /*
+                   Finish at zero.
+                */
+
+                if (
+                    remainingSeconds <= 0
+                ) {
+
+                    finishTimer();
+
+                }
+
+            },
+            1000
+        );
 
 }
 
@@ -485,7 +822,7 @@ function pauseTimer() {
 
 
     /*
-       Stop microphone temporarily.
+       Stop recognition.
     */
 
     if (recognition) {
@@ -494,13 +831,18 @@ function pauseTimer() {
 
             recognition.stop();
 
-        } catch (error) {
+        }
+
+        catch (error) {
 
             console.log(error);
 
         }
 
     }
+
+
+    recognitionStarting = false;
 
 }
 
@@ -524,7 +866,9 @@ function stopSpeaking() {
 
             recognition.stop();
 
-        } catch (error) {
+        }
+
+        catch (error) {
 
             console.log(error);
 
@@ -533,9 +877,20 @@ function stopSpeaking() {
     }
 
 
+    recognitionStarting = false;
+
+
     timerContainer.classList.remove(
         "timer-running"
     );
+
+
+    startText.textContent =
+        "Start Speaking";
+
+
+    statusElement.innerHTML =
+        '<span class="status-dot"></span> Ready';
 
 }
 
@@ -552,8 +907,12 @@ function resetTimer() {
 
     running = false;
 
+    recognitionStarting = false;
+
+
     remainingSeconds =
         TOTAL_SECONDS;
+
 
     finalTranscript = "";
 
@@ -568,7 +927,9 @@ function resetTimer() {
 
             recognition.stop();
 
-        } catch (error) {
+        }
+
+        catch (error) {
 
             console.log(error);
 
@@ -578,15 +939,27 @@ function resetTimer() {
 
 
     /*
-       Reset timer UI.
+       Reset timer.
     */
 
     updateTime();
 
 
-    progress.style.strokeDashoffset =
-        circumference;
+    /*
+       Reset circle.
+    */
 
+    if (progress) {
+
+        progress.style.strokeDashoffset =
+            circumference;
+
+    }
+
+
+    /*
+       Reset orbit.
+    */
 
     moveDot(0);
 
@@ -595,9 +968,17 @@ function resetTimer() {
         "0";
 
 
+    /*
+       Reset button.
+    */
+
     startText.textContent =
         "Start Speaking";
 
+
+    /*
+       Reset status.
+    */
 
     statusElement.innerHTML =
         '<span class="status-dot"></span> Ready';
@@ -667,11 +1048,17 @@ function updateCircle() {
         );
 
 
-    progress.style.strokeDashoffset =
-        offset;
+    if (progress) {
+
+        progress.style.strokeDashoffset =
+            offset;
+
+    }
 
 
-    moveDot(percentage);
+    moveDot(
+        percentage
+    );
 
 }
 
@@ -726,12 +1113,24 @@ function moveDot(percentage) {
 
 
 /* =========================================
-   TRANSCRIPT
+   UPDATE TRANSCRIPT
 ========================================= */
 
 function updateTranscript(text) {
 
-    if (!text.trim()) {
+    if (
+        !transcriptElement ||
+        !wordCountElement
+    ) {
+
+        return;
+
+    }
+
+
+    if (
+        !text.trim()
+    ) {
 
         transcriptElement.textContent =
             "Your spoken words will appear here...";
@@ -755,7 +1154,8 @@ function updateTranscript(text) {
             .trim()
             .split(/\s+/)
             .filter(
-                word => word.length > 0
+                word =>
+                    word.length > 0
             );
 
 
@@ -765,7 +1165,8 @@ function updateTranscript(text) {
 
     wordCountElement.textContent =
 
-        count +
+        count
+        +
         (
             count === 1
                 ? " word"
@@ -776,7 +1177,7 @@ function updateTranscript(text) {
 
 
 /* =========================================
-   FINISH TIMER
+   FINISH 60 SECOND SESSION
 ========================================= */
 
 function finishTimer() {
@@ -786,6 +1187,8 @@ function finishTimer() {
     timer = null;
 
     running = false;
+
+    recognitionStarting = false;
 
     remainingSeconds = 0;
 
@@ -800,7 +1203,9 @@ function finishTimer() {
 
             recognition.stop();
 
-        } catch (error) {
+        }
+
+        catch (error) {
 
             console.log(error);
 
@@ -809,12 +1214,20 @@ function finishTimer() {
     }
 
 
+    /*
+       Timer UI.
+    */
+
     timeElement.textContent =
         "00:00";
 
 
-    progress.style.strokeDashoffset =
-        "0";
+    if (progress) {
+
+        progress.style.strokeDashoffset =
+            "0";
+
+    }
 
 
     moveDot(1);
@@ -845,14 +1258,14 @@ function finishTimer() {
 
 
     /*
-       Finish sound.
+       Sound.
     */
 
     playFinishSound();
 
 
     /*
-       Show completion popup.
+       Show completion.
     */
 
     setTimeout(
@@ -898,12 +1311,16 @@ function newTopic() {
         topics[randomIndex];
 
 
+    /*
+       Topic.
+    */
+
     topicElement.textContent =
         selected.text;
 
 
     /*
-       Difficulty
+       Difficulty.
     */
 
     const difficulty =
@@ -912,17 +1329,21 @@ function newTopic() {
         );
 
 
-    difficulty.innerHTML = `
+    if (difficulty) {
 
-        <span class="difficulty-dot"></span>
+        difficulty.innerHTML = `
 
-        ${selected.difficulty}
+            <span class="difficulty-dot"></span>
 
-    `;
+            ${selected.difficulty}
+
+        `;
+
+    }
 
 
     /*
-       Category
+       Category.
     */
 
     const category =
@@ -931,12 +1352,16 @@ function newTopic() {
         );
 
 
-    category.textContent =
-        selected.category;
+    if (category) {
+
+        category.textContent =
+            selected.category;
+
+    }
 
 
     /*
-       Reset session.
+       Reset timer.
     */
 
     resetTimer();
@@ -966,10 +1391,11 @@ function newSession() {
 
 function updateStreak() {
 
-    const streakElement =
-        document.getElementById(
-            "streak"
-        );
+    if (!streakElement) {
+
+        return;
+
+    }
 
 
     let streak =
@@ -977,7 +1403,9 @@ function updateStreak() {
             localStorage.getItem(
                 "speak60Streak"
             )
-        ) || 0;
+        )
+        ||
+        0;
 
 
     streak++;
@@ -990,7 +1418,10 @@ function updateStreak() {
 
 
     streakElement.textContent =
-        String(streak).padStart(2, "0");
+        String(streak).padStart(
+            2,
+            "0"
+        );
 
 }
 
@@ -1001,26 +1432,28 @@ function updateStreak() {
 
 function loadStreak() {
 
+    if (!streakElement) {
+
+        return;
+
+    }
+
+
     const streak =
         parseInt(
             localStorage.getItem(
                 "speak60Streak"
             )
-        ) || 0;
+        )
+        ||
+        0;
 
 
-    const streakElement =
-        document.getElementById(
-            "streak"
+    streakElement.textContent =
+        String(streak).padStart(
+            2,
+            "0"
         );
-
-
-    if (streakElement) {
-
-        streakElement.textContent =
-            String(streak).padStart(2, "0");
-
-    }
 
 }
 
@@ -1036,7 +1469,7 @@ function requestAIFeedback() {
 
 
     /*
-       User hasn't spoken.
+       No answer.
     */
 
     if (!answer) {
@@ -1051,16 +1484,14 @@ function requestAIFeedback() {
 
 
     /*
-       Create the complete prompt.
-
-       IMPORTANT:
-       Do NOT put an OpenAI API key
-       inside this JavaScript file.
+       Prepare AI prompt.
     */
 
     const prompt =
-        AI_COACH_PROMPT +
-        "\n\n" +
+        AI_COACH_PROMPT
+        +
+        "\n\n"
+        +
         answer;
 
 
@@ -1071,8 +1502,7 @@ function requestAIFeedback() {
 
 
     /*
-       Backend will be connected here
-       in the next step.
+       Backend will be connected later.
     */
 
     alert(
@@ -1083,21 +1513,23 @@ function requestAIFeedback() {
 
 
 /* =========================================
-   KEYBOARD SHORTCUT
+   KEYBOARD SHORTCUTS
 ========================================= */
 
 document.addEventListener(
     "keydown",
     function(event) {
 
-
         /*
-           SPACE = Start / Pause
+           SPACE
+           Start / Pause
         */
 
         if (
-            event.code === "Space" &&
-            event.target.tagName !== "INPUT" &&
+            event.code === "Space"
+            &&
+            event.target.tagName !== "INPUT"
+            &&
             event.target.tagName !== "TEXTAREA"
         ) {
 
@@ -1109,7 +1541,8 @@ document.addEventListener(
 
 
         /*
-           R = Reset
+           R
+           Reset
         */
 
         if (
@@ -1154,7 +1587,10 @@ function playFinishSound() {
         audio.createGain();
 
 
-    oscillator.connect(gain);
+    oscillator.connect(
+        gain
+    );
+
 
     gain.connect(
         audio.destination
@@ -1173,7 +1609,9 @@ function playFinishSound() {
 
 
     oscillator.stop(
-        audio.currentTime + 0.35
+        audio.currentTime
+        +
+        0.35
     );
 
 }
@@ -1182,6 +1620,8 @@ function playFinishSound() {
 /* =========================================
    INITIALIZE
 ========================================= */
+
+createSpeechRecognition();
 
 loadStreak();
 
