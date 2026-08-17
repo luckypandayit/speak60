@@ -1,6 +1,6 @@
 /* =========================================
    SPEAK60
-   MODERN 60 SECOND SPEAKING TIMER
+   60 SECOND ENGLISH SPEAKING PRACTICE
 ========================================= */
 
 
@@ -15,6 +15,62 @@ let remainingSeconds = TOTAL_SECONDS;
 let timer = null;
 
 let running = false;
+
+let finalTranscript = "";
+
+let recognition = null;
+
+let speechSupported = false;
+
+
+/* =========================================
+   ENGLISH COACH PROMPT
+========================================= */
+
+const AI_COACH_PROMPT = `
+Act as my English speaking partner.
+
+Give me one random speaking topic at a time.
+
+The topics should be suitable for everyday
+conversations, opinions, work, travel,
+technology, books, or current events.
+
+After I answer:
+
+1. Correct my grammar naturally.
+
+2. Replace unnatural words or phrases
+with more natural English.
+
+3. Suggest 3 advanced vocabulary words
+or phrases related to my answer.
+
+4. Ask me 3 follow-up questions to keep
+the conversation going.
+
+5. Rate my:
+- Fluency
+- Vocabulary
+- Grammar
+- Pronunciation based on my text
+- Communication skills
+
+Rate each out of 10.
+
+6. Tell me:
+- One thing I did well
+- One thing I should improve
+
+Do not rewrite my entire answer unless I ask.
+
+Help me think and speak more naturally.
+
+Keep the conversation encouraging,
+realistic, and practical.
+
+User's answer:
+`;
 
 
 /* =========================================
@@ -32,7 +88,7 @@ const topics = [
     {
         text: "If you could travel anywhere, where would you go?",
         difficulty: "Easy",
-        category: "LIFESTYLE"
+        category: "TRAVEL"
     },
 
     {
@@ -117,7 +173,7 @@ const topics = [
 
 
 /* =========================================
-   ELEMENTS
+   DOM ELEMENTS
 ========================================= */
 
 const timeElement =
@@ -132,9 +188,6 @@ const statusElement =
 const orbitDot =
     document.getElementById("orbitDot");
 
-const startButton =
-    document.getElementById("startBtn");
-
 const startText =
     document.getElementById("startText");
 
@@ -147,19 +200,24 @@ const completion =
 const timerContainer =
     document.querySelector(".timer-container");
 
-const timerPanel =
-    document.querySelector(".timer-panel");
+const transcriptElement =
+    document.getElementById("transcript");
+
+const wordCountElement =
+    document.getElementById("wordCount");
+
+const feedbackButton =
+    document.getElementById("feedbackBtn");
 
 
 /* =========================================
-   CIRCLE
+   TIMER CIRCLE
 ========================================= */
 
 const radius = 150;
 
 const circumference =
     2 * Math.PI * radius;
-
 
 progress.style.strokeDasharray =
     circumference;
@@ -169,10 +227,136 @@ progress.style.strokeDashoffset =
 
 
 /* =========================================
-   START TIMER
+   SPEECH RECOGNITION
+========================================= */
+
+const SpeechRecognition =
+    window.SpeechRecognition ||
+    window.webkitSpeechRecognition;
+
+
+if (SpeechRecognition) {
+
+    speechSupported = true;
+
+    recognition =
+        new SpeechRecognition();
+
+    recognition.continuous = true;
+
+    recognition.interimResults = true;
+
+    recognition.lang = "en-US";
+
+
+    recognition.onresult = function(event) {
+
+        let interimTranscript = "";
+
+
+        for (
+            let i = event.resultIndex;
+            i < event.results.length;
+            i++
+        ) {
+
+            const text =
+                event.results[i][0].transcript;
+
+
+            if (
+                event.results[i].isFinal
+            ) {
+
+                finalTranscript +=
+                    text + " ";
+
+            } else {
+
+                interimTranscript += text;
+
+            }
+
+        }
+
+
+        const completeTranscript =
+            finalTranscript +
+            interimTranscript;
+
+
+        updateTranscript(
+            completeTranscript
+        );
+
+    };
+
+
+    recognition.onerror = function(event) {
+
+        console.log(
+            "Speech recognition:",
+            event.error
+        );
+
+
+        if (
+            event.error === "not-allowed"
+        ) {
+
+            alert(
+                "Microphone permission is required for Speak60."
+            );
+
+            stopSpeaking();
+
+        }
+
+    };
+
+
+    recognition.onend = function() {
+
+        /*
+         Chrome can automatically stop
+         speech recognition.
+
+         Restart while the 60-second
+         session is active.
+        */
+
+        if (running) {
+
+            try {
+
+                recognition.start();
+
+            } catch (error) {
+
+                console.log(
+                    "Recognition restart:",
+                    error
+                );
+
+            }
+
+        }
+
+    };
+
+}
+
+
+/* =========================================
+   START / PAUSE
 ========================================= */
 
 function startTimer() {
+
+    /*
+       If already running,
+       pause the session.
+    */
 
     if (running) {
 
@@ -183,6 +367,10 @@ function startTimer() {
     }
 
 
+    /*
+       Restart after completion.
+    */
+
     if (remainingSeconds <= 0) {
 
         resetTimer();
@@ -190,10 +378,25 @@ function startTimer() {
     }
 
 
+    /*
+       Browser support check.
+    */
+
+    if (!speechSupported) {
+
+        alert(
+            "Speech recognition is not supported in this browser. Please use Google Chrome."
+        );
+
+        return;
+
+    }
+
+
     running = true;
 
 
-    startText.innerHTML =
+    startText.textContent =
         "Pause Session";
 
 
@@ -201,51 +404,133 @@ function startTimer() {
         '<span class="status-dot"></span> Speaking';
 
 
-    orbitDot.style.opacity = "1";
-
-
     timerContainer.classList.add(
         "timer-running"
     );
 
 
-    timer = setInterval(() => {
-
-        remainingSeconds--;
-
-        updateTime();
-
-        updateCircle();
+    orbitDot.style.opacity = "1";
 
 
-        if (remainingSeconds <= 0) {
+    /*
+       Start microphone.
+    */
 
-            finishTimer();
+    try {
 
-        }
+        recognition.start();
 
-    }, 1000);
+    } catch (error) {
+
+        console.log(
+            "Recognition already running."
+        );
+
+    }
+
+
+    /*
+       Start countdown.
+    */
+
+    timer = setInterval(
+        function() {
+
+            remainingSeconds--;
+
+            updateTime();
+
+            updateCircle();
+
+
+            if (
+                remainingSeconds <= 0
+            ) {
+
+                finishTimer();
+
+            }
+
+        },
+        1000
+    );
 
 }
 
 
 /* =========================================
-   PAUSE
+   PAUSE TIMER
 ========================================= */
 
 function pauseTimer() {
 
     clearInterval(timer);
 
+    timer = null;
+
     running = false;
 
 
-    startText.innerHTML =
+    startText.textContent =
         "Resume Speaking";
 
 
     statusElement.innerHTML =
         '<span class="status-dot"></span> Paused';
+
+
+    timerContainer.classList.remove(
+        "timer-running"
+    );
+
+
+    /*
+       Stop microphone temporarily.
+    */
+
+    if (recognition) {
+
+        try {
+
+            recognition.stop();
+
+        } catch (error) {
+
+            console.log(error);
+
+        }
+
+    }
+
+}
+
+
+/* =========================================
+   STOP SPEAKING
+========================================= */
+
+function stopSpeaking() {
+
+    clearInterval(timer);
+
+    timer = null;
+
+    running = false;
+
+
+    if (recognition) {
+
+        try {
+
+            recognition.stop();
+
+        } catch (error) {
+
+            console.log(error);
+
+        }
+
+    }
 
 
     timerContainer.classList.remove(
@@ -263,11 +548,38 @@ function resetTimer() {
 
     clearInterval(timer);
 
+    timer = null;
+
     running = false;
 
     remainingSeconds =
         TOTAL_SECONDS;
 
+    finalTranscript = "";
+
+
+    /*
+       Stop recognition.
+    */
+
+    if (recognition) {
+
+        try {
+
+            recognition.stop();
+
+        } catch (error) {
+
+            console.log(error);
+
+        }
+
+    }
+
+
+    /*
+       Reset timer UI.
+    */
 
     updateTime();
 
@@ -276,14 +588,14 @@ function resetTimer() {
         circumference;
 
 
+    moveDot(0);
+
+
     orbitDot.style.opacity =
         "0";
 
 
-    moveDot(0);
-
-
-    startText.innerHTML =
+    startText.textContent =
         "Start Speaking";
 
 
@@ -294,6 +606,13 @@ function resetTimer() {
     timerContainer.classList.remove(
         "timer-running"
     );
+
+
+    /*
+       Reset transcript.
+    */
+
+    updateTranscript("");
 
 }
 
@@ -314,7 +633,7 @@ function updateTime() {
         remainingSeconds % 60;
 
 
-    timeElement.innerHTML =
+    timeElement.textContent =
 
         String(minutes).padStart(2, "0")
         +
@@ -364,7 +683,6 @@ function updateCircle() {
 function moveDot(percentage) {
 
     const angle =
-
         percentage *
         2 *
         Math.PI
@@ -378,14 +696,12 @@ function moveDot(percentage) {
 
 
     const x =
-
         centerX +
         radius *
         Math.cos(angle);
 
 
     const y =
-
         centerY +
         radius *
         Math.sin(angle);
@@ -410,19 +726,90 @@ function moveDot(percentage) {
 
 
 /* =========================================
-   FINISH
+   TRANSCRIPT
+========================================= */
+
+function updateTranscript(text) {
+
+    if (!text.trim()) {
+
+        transcriptElement.textContent =
+            "Your spoken words will appear here...";
+
+
+        wordCountElement.textContent =
+            "0 words";
+
+
+        return;
+
+    }
+
+
+    transcriptElement.textContent =
+        text;
+
+
+    const words =
+        text
+            .trim()
+            .split(/\s+/)
+            .filter(
+                word => word.length > 0
+            );
+
+
+    const count =
+        words.length;
+
+
+    wordCountElement.textContent =
+
+        count +
+        (
+            count === 1
+                ? " word"
+                : " words"
+        );
+
+}
+
+
+/* =========================================
+   FINISH TIMER
 ========================================= */
 
 function finishTimer() {
 
     clearInterval(timer);
 
+    timer = null;
+
     running = false;
 
     remainingSeconds = 0;
 
 
-    timeElement.innerHTML =
+    /*
+       Stop speech recognition.
+    */
+
+    if (recognition) {
+
+        try {
+
+            recognition.stop();
+
+        } catch (error) {
+
+            console.log(error);
+
+        }
+
+    }
+
+
+    timeElement.textContent =
         "00:00";
 
 
@@ -433,7 +820,11 @@ function finishTimer() {
     moveDot(1);
 
 
-    startText.innerHTML =
+    orbitDot.style.opacity =
+        "1";
+
+
+    startText.textContent =
         "Session Complete";
 
 
@@ -447,30 +838,33 @@ function finishTimer() {
 
 
     /*
-       Update streak
+       Update streak.
     */
 
     updateStreak();
 
 
     /*
-       Play sound
+       Finish sound.
     */
 
     playFinishSound();
 
 
     /*
-       Show completion popup
+       Show completion popup.
     */
 
-    setTimeout(() => {
+    setTimeout(
+        function() {
 
-        completion.classList.add(
-            "show"
-        );
+            completion.classList.add(
+                "show"
+            );
 
-    }, 500);
+        },
+        500
+    );
 
 }
 
@@ -495,7 +889,7 @@ function newTopic() {
     }
 
     while (
-        topicElement.innerHTML ===
+        topicElement.textContent ===
         topics[randomIndex].text
     );
 
@@ -504,12 +898,12 @@ function newTopic() {
         topics[randomIndex];
 
 
-    topicElement.innerHTML =
+    topicElement.textContent =
         selected.text;
 
 
     /*
-       Update difficulty
+       Difficulty
     */
 
     const difficulty =
@@ -528,7 +922,7 @@ function newTopic() {
 
 
     /*
-       Update category
+       Category
     */
 
     const category =
@@ -537,12 +931,12 @@ function newTopic() {
         );
 
 
-    category.innerHTML =
+    category.textContent =
         selected.category;
 
 
     /*
-       Reset timer
+       Reset session.
     */
 
     resetTimer();
@@ -595,7 +989,7 @@ function updateStreak() {
     );
 
 
-    streakElement.innerHTML =
+    streakElement.textContent =
         String(streak).padStart(2, "0");
 
 }
@@ -615,11 +1009,75 @@ function loadStreak() {
         ) || 0;
 
 
-    document.getElementById(
-        "streak"
-    ).innerHTML =
+    const streakElement =
+        document.getElementById(
+            "streak"
+        );
 
-        String(streak).padStart(2, "0");
+
+    if (streakElement) {
+
+        streakElement.textContent =
+            String(streak).padStart(2, "0");
+
+    }
+
+}
+
+
+/* =========================================
+   AI FEEDBACK
+========================================= */
+
+function requestAIFeedback() {
+
+    const answer =
+        finalTranscript.trim();
+
+
+    /*
+       User hasn't spoken.
+    */
+
+    if (!answer) {
+
+        alert(
+            "First complete a speaking session."
+        );
+
+        return;
+
+    }
+
+
+    /*
+       Create the complete prompt.
+
+       IMPORTANT:
+       Do NOT put an OpenAI API key
+       inside this JavaScript file.
+    */
+
+    const prompt =
+        AI_COACH_PROMPT +
+        "\n\n" +
+        answer;
+
+
+    console.log(
+        "Speak60 AI Prompt:",
+        prompt
+    );
+
+
+    /*
+       Backend will be connected here
+       in the next step.
+    */
+
+    alert(
+        "Your response is ready for AI analysis."
+    );
 
 }
 
@@ -632,13 +1090,15 @@ document.addEventListener(
     "keydown",
     function(event) {
 
+
         /*
-           Space = Start / Pause
+           SPACE = Start / Pause
         */
 
         if (
             event.code === "Space" &&
-            event.target.tagName !== "INPUT"
+            event.target.tagName !== "INPUT" &&
+            event.target.tagName !== "TEXTAREA"
         ) {
 
             event.preventDefault();
@@ -728,3 +1188,5 @@ loadStreak();
 moveDot(0);
 
 updateTime();
+
+updateTranscript("");
